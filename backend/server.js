@@ -20,12 +20,22 @@ graphCore.stdout.on("data", (data) => {
         const msg = JSON.parse(line.trim());
         console.log("📡 Engine response:", msg);
 
+        // inside buffer loop
+        if (msg.op) {
+          wss.clients.forEach((client) => {
+            if (client.readyState === client.OPEN) {
+              client.send(JSON.stringify({ type: "log", msg: JSON.stringify(msg) }));
+            }
+          });
+        }
+
+
         // broadcast to all connected clients
-        wss.clients.forEach((client) => {
-          if (client.readyState === client.OPEN) {
-            client.send(JSON.stringify(msg));
-          }
-        });
+        // wss.clients.forEach((client) => {
+        //   if (client.readyState === client.OPEN) {
+        //     client.send(JSON.stringify(msg));
+        //   }
+        // });
       } catch (err) {
         console.error("❌ JSON parse error:", err.message, "line:", line);
       }
@@ -46,11 +56,16 @@ wss.on("connection", (ws) => {
   console.log("✅ Client connected");
 
   ws.on("message", (msg) => {
-    console.log("➡️ From client:", msg.toString());
+  try {
+    const json = JSON.parse(msg.toString());
+    // simple validation
+    if (!json.op) return;
+    graphCore.stdin.write(JSON.stringify(json) + "\n");
+  } catch {
+    console.error("❌ Invalid JSON from client:", msg.toString());
+  }
+});
 
-    // forward command to C++ engine
-    graphCore.stdin.write(msg.toString().trim() + "\n");
-  });
 
   ws.send(JSON.stringify({ type: "status", msg: "Connected to backend" }));
 });
