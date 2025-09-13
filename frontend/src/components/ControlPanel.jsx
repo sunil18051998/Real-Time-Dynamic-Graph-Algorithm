@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function ControlPanel({ nodes, addNode, addEdge }) {
+export default function ControlPanel({ nodes, addNode, addEdge, runLouvain }) {
   const [nodeId, setNodeId] = useState("");
   const [source, setSource] = useState("");
   const [target, setTarget] = useState("");
@@ -86,6 +86,16 @@ export default function ControlPanel({ nodes, addNode, addEdge }) {
           Add Edge
         </button>
       </div>
+      <button
+        className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+        onClick={() => {
+          const nodeIds = nodes.map(n => n.id);
+          runLouvain(nodeIds);
+        }}
+      >
+        Run Louvain
+      </button>
+
 
       {/* Error Message */}
       {error && (

@@ -2,6 +2,7 @@
 #include <sstream>
 #include <queue>
 #include <algorithm>
+#include <iostream>
 
 
 // ------------------ Node / Edge operations ------------------
@@ -9,6 +10,9 @@ bool Graph::add_node(NodeId id, const std::string& label) {
     std::unique_lock lock(graph_mutex_);
     if (nodes_.count(id)) return false;
     nodes_[id] = Node{id, label, static_cast<int>(id)};
+    std::cout << "[DEBUG] Adding node " << id << "\n";
+    std::cout << "[DEBUG] Nodes in graph: " << nodes_.size() << "\n";
+    std::cout << "[DEBUG] Edges in graph: " << adj_.size() << "\n";
     community_of_[id] = static_cast<int>(id);
     adj_[id] = {};
     return true;
@@ -83,6 +87,9 @@ std::vector<std::pair<NodeId,int>> Graph::incremental_louvain_apply(const std::v
     std::unique_lock lock(graph_mutex_);
     std::vector<std::pair<NodeId,int>> moves;
 
+    std::cout << "[DEBUG] Louvain running. Nodes in graph: " << adj_.size() << "\n";
+
+
     for (auto v : touched) {
         if (!adj_.count(v)) continue;
         std::unordered_map<int,int> count;
@@ -102,6 +109,8 @@ std::vector<std::pair<NodeId,int>> Graph::incremental_louvain_apply(const std::v
             moves.push_back({v,bestC});
         }
     }
+
+     std::cout << "[DEBUG] Louvain produced " << moves.size() << " moves.\n";
     return moves;
 }
 
@@ -147,8 +156,8 @@ std::vector<NodeId> Graph::shortest_path_bfs(NodeId src, NodeId dst) const {
 std::string Graph::applyBatch(const std::vector<std::string>& batch) {
     std::ostringstream out;
     out << "{";
-    out << "\"type\":\"delta\",";
-    out << "\"moves\":[";
+    out << "\"type\":\"delta apply\",";
+    out << "\"moves\":["; ;
 
     bool firstMove = true;
     std::vector<NodeId> touched;
@@ -156,13 +165,18 @@ std::string Graph::applyBatch(const std::vector<std::string>& batch) {
     paths << "\"paths\":[";
     bool firstPath = true;
 
+    //out << batch.size();
+
     for (auto &cmdline : batch) {
+        out << cmdline;
         std::istringstream iss(cmdline);
         std::string cmd;
         iss >> cmd;
 
         if (cmd == "ADD_NODE") {
+            //std::cout<<"[DEBUG] ADD_NODE\n";
             NodeId id; iss >> id;
+            //out << "{" << "ADD_NODE" << id <<"},";
             add_node(id);
         } else if (cmd == "REMOVE_NODE") {
             NodeId id; iss >> id;
@@ -189,6 +203,7 @@ std::string Graph::applyBatch(const std::vector<std::string>& batch) {
             }
             paths << "]}";
         } else if (cmd == "RUN_LOUVAIN") {
+            std::cout << "[DEBUG] Running Louvain on touched nodes: ";
             std::vector<NodeId> ids; NodeId t;
             while (iss >> t) ids.push_back(t);
             auto moves = incremental_louvain_apply(ids);

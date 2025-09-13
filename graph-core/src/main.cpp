@@ -9,6 +9,7 @@ int main() {
   std::cout << "{\"type\":\"ready\"}" << std::endl;
 
   while (std::getline(std::cin, line)) {
+    //std::cout << "[DEBUG] Received line: " << line << std::endl;
     if (line.empty()) continue;
     // Commands separated by semicolon for batch
     std::vector<std::string> cmds;

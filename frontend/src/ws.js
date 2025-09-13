@@ -25,7 +25,12 @@ export function sendUpdate(cmd) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     // Send JSON directly to C++ engine
     socket.send(JSON.stringify(cmd));
-  } else {
+  }
+  else if (cmd.op === "run_louvain") {
+  command = `RUN_LOUVAIN ${cmd.nodes.join(" ")}`;
+}
+ 
+  else {
     console.warn("⚠️ WebSocket not open. Could not send:", cmd);
   }
 }
