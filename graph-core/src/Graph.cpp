@@ -3,6 +3,8 @@
 #include <queue>
 #include <algorithm>
 #include <iostream>
+#include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 
 
 // ------------------ Node / Edge operations ------------------
@@ -10,9 +12,9 @@ bool Graph::add_node(NodeId id, const std::string& label) {
     std::unique_lock lock(graph_mutex_);
     if (nodes_.count(id)) return false;
     nodes_[id] = Node{id, label, static_cast<int>(id)};
-    std::cout << "[DEBUG] Adding node " << id << "\n";
-    std::cout << "[DEBUG] Nodes in graph: " << nodes_.size() << "\n";
-    std::cout << "[DEBUG] Edges in graph: " << adj_.size() << "\n";
+    // std::cout << "[DEBUG] Adding node " << id << "\n";
+    // std::cout << "[DEBUG] Nodes in graph: " << nodes_.size() << "\n";
+    // std::cout << "[DEBUG] Edges in graph: " << adj_.size() << "\n";
     community_of_[id] = static_cast<int>(id);
     adj_[id] = {};
     return true;
@@ -87,7 +89,7 @@ std::vector<std::pair<NodeId,int>> Graph::incremental_louvain_apply(const std::v
     std::unique_lock lock(graph_mutex_);
     std::vector<std::pair<NodeId,int>> moves;
 
-    std::cout << "[DEBUG] Louvain running. Nodes in graph: " << adj_.size() << "\n";
+    //std::cout << "[DEBUG] Louvain running. Nodes in graph: " << adj_.size() << "\n";
 
 
     for (auto v : touched) {
@@ -110,7 +112,7 @@ std::vector<std::pair<NodeId,int>> Graph::incremental_louvain_apply(const std::v
         }
     }
 
-     std::cout << "[DEBUG] Louvain produced " << moves.size() << " moves.\n";
+     //std::cout << "[DEBUG] Louvain produced " << moves.size() << " moves.\n";
     return moves;
 }
 
@@ -153,70 +155,108 @@ std::vector<NodeId> Graph::shortest_path_bfs(NodeId src, NodeId dst) const {
 }
 
 // ------------------ Batch command processing ------------------
+
 std::string Graph::applyBatch(const std::vector<std::string>& batch) {
     std::ostringstream out;
     out << "{";
     out << "\"type\":\"delta apply\",";
-    out << "\"moves\":["; ;
+    out << "\"moves\":[";
 
     bool firstMove = true;
-    std::vector<NodeId> touched;
     std::ostringstream paths;
     paths << "\"paths\":[";
     bool firstPath = true;
 
-    //out << batch.size();
+    for (const auto& cmdline : batch) {
+        //out << cmdline << "\n";
+        rapidjson::Document doc;
+        doc.Parse(cmdline.c_str());
 
-    for (auto &cmdline : batch) {
-        out << cmdline;
-        std::istringstream iss(cmdline);
-        std::string cmd;
-        iss >> cmd;
+        if (doc.HasParseError()) {
+            std::cerr << "[ERROR] JSON parse failed: "
+                      << rapidjson::GetParseError_En(doc.GetParseError())
+                      << " (at offset " << doc.GetErrorOffset() << ")\n";
+            continue;
+        }
 
-        if (cmd == "ADD_NODE") {
-            //std::cout<<"[DEBUG] ADD_NODE\n";
-            NodeId id; iss >> id;
-            //out << "{" << "ADD_NODE" << id <<"},";
-            add_node(id);
-        } else if (cmd == "REMOVE_NODE") {
-            NodeId id; iss >> id;
-            remove_node(id);
-        } else if (cmd == "ADD_EDGE") {
-            NodeId u,v; double w=1.0; iss >> u >> v;
-            if (!(iss >> w)) w=1.0;
-            add_edge(u,v,w);
-            touched.push_back(u); touched.push_back(v);
-        } else if (cmd == "REMOVE_EDGE") {
-            NodeId u,v; iss >> u >> v;
-            remove_edge(u,v);
-            touched.push_back(u); touched.push_back(v);
-        } else if (cmd == "SHORTEST_PATH") {
-            NodeId s,d; iss >> s >> d;
-            auto path = shortest_path_bfs(s,d);
-            if (!firstPath) paths << ",";
-            firstPath = false;
-            paths << "{"
-                  << "\"src\":" << s << ",\"dst\":" << d << ",\"path\":[";
-            for (size_t i=0;i<path.size();++i) {
-                if (i) paths << ",";
-                paths << path[i];
-            }
-            paths << "]}";
-        } else if (cmd == "RUN_LOUVAIN") {
-            std::cout << "[DEBUG] Running Louvain on touched nodes: ";
-            std::vector<NodeId> ids; NodeId t;
-            while (iss >> t) ids.push_back(t);
-            auto moves = incremental_louvain_apply(ids);
-            for (auto &m : moves) {
+        if (!doc.HasMember("moves") || !doc["moves"].IsArray()) {
+            std::cerr << "[WARN] No moves array in command\n";
+            continue;
+        }
+
+        const auto& moves = doc["moves"];
+        for (auto& mv : moves.GetArray()) {
+            if (!mv.HasMember("op") || !mv["op"].IsString()) continue;
+            std::string op = mv["op"].GetString();
+
+            if (op == "ADD_NODE") {
+                auto& node = mv["node"];
+                NodeId id = node["id"].GetInt();
+                std::string label = node.HasMember("label") ? node["label"].GetString() : ("Node " + std::to_string(id));
+                add_node(id, label);
+
                 if (!firstMove) out << ",";
                 firstMove = false;
-                out << "{\"node\":"<<m.first<<",\"community\":"<<m.second<<"}";
-            }
+                out << "{\"node\":" << id << ",\"community\":" << community_of_[id] << "}";
+
+            } else if (op == "REMOVE_NODE") {
+                NodeId id = mv["node"]["id"].GetInt();
+                remove_node(id);
+
+            } else if (op == "ADD_EDGE") {
+                auto& edge = mv["edge"];
+                NodeId u = edge["source"].GetInt();
+                NodeId v = edge["target"].GetInt();
+                double w = edge.HasMember("weight") ? edge["weight"].GetDouble() : 1.0;
+                add_edge(u, v, w);
+
+            } else if (op == "REMOVE_EDGE") {
+                auto& edge = mv["edge"];
+                NodeId u = edge["source"].GetInt();
+                NodeId v = edge["target"].GetInt();
+                remove_edge(u, v);
+
+            } 
+            // else if (op == "RUN_LOUVAIN") {
+            //     //std::cout << "[DEBUG] Running Louvain...\n";
+            //     std::vector<NodeId> touched;
+            //     if (mv.HasMember("touched") && mv["touched"].IsArray()) {
+            //         for (auto& id : mv["touched"].GetArray()) touched.push_back(id.GetInt());
+            //     }
+            //     auto louvainMoves = incremental_louvain_apply(touched);
+            //     for (auto &m : louvainMoves) {
+            //         if (!firstMove) out << ",";
+            //         firstMove = false;
+            //         out << "{\"node\":" << m.first << ",\"community\":" << m.second << "}";
+            //     }
+            // }
+            else if (op == "RUN_LOUVAIN") {
+    std::vector<NodeId> touched;
+    if (mv.HasMember("touched") && mv["touched"].IsArray()) {
+        for (auto& id : mv["touched"].GetArray()) {
+            touched.push_back(id.GetInt());
+            //std::cerr << "[DEBUG] Touched node: " << id.GetInt() << "\n";
+        }
+    } else {
+        //std::cerr << "[DEBUG] No 'touched' array received!\n";
+    }
+
+    //std::cerr << "[DEBUG] Running Louvain on " << touched.size() << " nodes\n";
+    auto louvainMoves = incremental_louvain_apply(touched);
+    //std::cerr << "[DEBUG] Louvain returned " << louvainMoves.size() << " moves\n";
+
+    for (auto &m : louvainMoves) {
+        if (!firstMove) out << ",";
+        firstMove = false;
+        out << "{\"node\":" << m.first << ",\"community\":" << m.second << "}";
+    }
+}
+
         }
     }
 
     out << "],";
-    paths << "]"; 
+    paths << "]";
     out << paths.str();
     out << "}";
 

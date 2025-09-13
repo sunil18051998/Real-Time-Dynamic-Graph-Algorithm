@@ -10,6 +10,7 @@ let buffer = "";
 
 // handle output from C++ engine
 graphCore.stdout.on("data", (data) => {
+  console.log("data = ", data.toString());
   buffer += data.toString();
   let lines = buffer.split("\n");
   buffer = lines.pop();
@@ -56,10 +57,18 @@ wss.on("connection", (ws) => {
   console.log("✅ Client connected");
 
   ws.on("message", (msg) => {
+    //console.log("msg = ", msg.toString());
   try {
     const json = JSON.parse(msg.toString());
+    console.log(json)
     // simple validation
-    if (!json.op) return;
+    const moves = json.moves;
+    if (!Array.isArray(moves) || moves.some(m => !m.op)) {
+      console.error("❌ Invalid move format:", msg.toString());
+      return;
+    }
+
+    //if (!json.op) return;
     graphCore.stdin.write(JSON.stringify(json) + "\n");
   } catch {
     console.error("❌ Invalid JSON from client:", msg.toString());

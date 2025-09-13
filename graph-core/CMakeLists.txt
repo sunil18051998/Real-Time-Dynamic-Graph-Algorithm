@@ -10,5 +10,8 @@ set(SRCS
   src/Graph.cpp
 )
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+
 add_executable(graph_core ${SRCS})
 target_include_directories(graph_core PRIVATE src)

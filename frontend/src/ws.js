@@ -21,14 +21,17 @@ export function connectWS(onMessage) {
   socket.onerror = (err) => console.error("⚠️ WebSocket error:", err);
 }
 
-export function sendUpdate(cmd) {
+export function sendUpdate(move) {
+  const cmd = {
+    type: "delta apply",
+    moves: [move], // always an array, even if single move
+    paths: [] // keep empty array if not used
+  };
+
   if (socket && socket.readyState === WebSocket.OPEN) {
     // Send JSON directly to C++ engine
     socket.send(JSON.stringify(cmd));
   }
-  else if (cmd.op === "run_louvain") {
-  command = `RUN_LOUVAIN ${cmd.nodes.join(" ")}`;
-}
  
   else {
     console.warn("⚠️ WebSocket not open. Could not send:", cmd);
