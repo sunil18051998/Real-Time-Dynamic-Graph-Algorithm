@@ -172,3 +172,9 @@ C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapi
 C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/internal/strfunc.h
 C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/internal/../stream.h
 C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/error/en.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/writer.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/stream.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/internal/dtoa.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/internal/itoa.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/stringbuffer.h
+C:/Users/pc/MyProjects/Real-Time-Dynamic-Graph-Algorithm/graph-core/include/rapidjson/stream.h

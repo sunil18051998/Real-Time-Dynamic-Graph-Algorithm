@@ -5,6 +5,8 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 
 // ------------------ Node / Edge operations ------------------
@@ -217,40 +219,40 @@ std::string Graph::applyBatch(const std::vector<std::string>& batch) {
                 remove_edge(u, v);
 
             } 
-            // else if (op == "RUN_LOUVAIN") {
-            //     //std::cout << "[DEBUG] Running Louvain...\n";
-            //     std::vector<NodeId> touched;
-            //     if (mv.HasMember("touched") && mv["touched"].IsArray()) {
-            //         for (auto& id : mv["touched"].GetArray()) touched.push_back(id.GetInt());
-            //     }
-            //     auto louvainMoves = incremental_louvain_apply(touched);
-            //     for (auto &m : louvainMoves) {
-            //         if (!firstMove) out << ",";
-            //         firstMove = false;
-            //         out << "{\"node\":" << m.first << ",\"community\":" << m.second << "}";
-            //     }
-            // }
-            else if (op == "RUN_LOUVAIN") {
+
+ else if (op == "RUN_LOUVAIN") {
     std::vector<NodeId> touched;
     if (mv.HasMember("touched") && mv["touched"].IsArray()) {
-        for (auto& id : mv["touched"].GetArray()) {
-            touched.push_back(id.GetInt());
-            //std::cerr << "[DEBUG] Touched node: " << id.GetInt() << "\n";
-        }
-    } else {
-        //std::cerr << "[DEBUG] No 'touched' array received!\n";
+        for (auto& id : mv["touched"].GetArray()) touched.push_back(id.GetInt());
     }
 
-    //std::cerr << "[DEBUG] Running Louvain on " << touched.size() << " nodes\n";
     auto louvainMoves = incremental_louvain_apply(touched);
-    //std::cerr << "[DEBUG] Louvain returned " << louvainMoves.size() << " moves\n";
+
+    // Build JSON response
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+    writer.StartObject();
+    writer.Key("type");
+    writer.String("louvain_result");
+    writer.Key("moves");
+    writer.StartArray();
 
     for (auto &m : louvainMoves) {
-        if (!firstMove) out << ",";
-        firstMove = false;
-        out << "{\"node\":" << m.first << ",\"community\":" << m.second << "}";
+        writer.StartObject();
+        writer.Key("node");
+        writer.Int(m.first);
+        writer.Key("community");
+        writer.Int(m.second);
+        writer.EndObject();
     }
+
+    writer.EndArray();
+    writer.EndObject();
+
+    std::cout << buffer.GetString() << std::endl;
 }
+
 
         }
     }

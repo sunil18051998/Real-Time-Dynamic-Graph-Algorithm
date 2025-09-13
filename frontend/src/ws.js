@@ -10,6 +10,7 @@ export function connectWS(onMessage) {
 
   socket.onmessage = (event) => {
     try {
+      //console.log("event = ", event.data );
       const data = JSON.parse(event.data);
       onMessage(data);
     } catch (err) {

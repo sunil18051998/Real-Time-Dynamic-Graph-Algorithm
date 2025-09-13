@@ -10,7 +10,7 @@ let buffer = "";
 
 // handle output from C++ engine
 graphCore.stdout.on("data", (data) => {
-  console.log("data = ", data.toString());
+  //console.log("data = ", data.toString());
   buffer += data.toString();
   let lines = buffer.split("\n");
   buffer = lines.pop();
@@ -22,7 +22,7 @@ graphCore.stdout.on("data", (data) => {
         console.log("📡 Engine response:", msg);
 
         // inside buffer loop
-        if (msg.op) {
+        if (msg) {
           wss.clients.forEach((client) => {
             if (client.readyState === client.OPEN) {
               client.send(JSON.stringify({ type: "log", msg: JSON.stringify(msg) }));
@@ -30,13 +30,6 @@ graphCore.stdout.on("data", (data) => {
           });
         }
 
-
-        // broadcast to all connected clients
-        // wss.clients.forEach((client) => {
-        //   if (client.readyState === client.OPEN) {
-        //     client.send(JSON.stringify(msg));
-        //   }
-        // });
       } catch (err) {
         console.error("❌ JSON parse error:", err.message, "line:", line);
       }

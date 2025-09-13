@@ -13,6 +13,7 @@ function App() {
   // Connect WebSocket
   useEffect(() => {
     connectWS((msg) => {
+      //console.log(msg);
       if (!msg) return;
 
       // Update communities from Louvain
@@ -42,6 +43,22 @@ function App() {
       if (msg.type === "log") {
         setLogs((prev) => [msg, ...prev]);
       }
+
+      if (msg.type === "louvain_result") {
+      console.log("📊 Louvain Result:", msg.moves);
+
+      // Update nodes with new community assignments
+      setNodes(prevNodes =>
+        prevNodes.map(node => {
+          const updated = msg.moves.find(m => m.node === node.id);
+          return updated ? { ...node, community: updated.community } : node;
+        })
+      );
+
+      // Add to logs for Sidebar
+      setLogs(prev => [{ type: "LOUVAIN", data: msg.moves }, ...prev]);
+    }
+
     });
   }, []);
 
@@ -79,6 +96,7 @@ function App() {
     const nodeIds = nodes.map((n) => n.id);
     sendUpdate({ op: "RUN_LOUVAIN", touched: nodeIds });
     setLogs((prev) => [`Louvain community detection requested for nodes: [${nodeIds.join(", ")}]`, ...prev]);
+    
   };
 
   return (
